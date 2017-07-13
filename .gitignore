@@ -1,0 +1,5 @@
+# IDE files
+.idea
+
+# Generated app files
+tmp/

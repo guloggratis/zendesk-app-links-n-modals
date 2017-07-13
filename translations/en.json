@@ -1,0 +1,14 @@
+{
+  "app": {
+    "name": "User Info, Links & Modals",
+    "short_description": "Information about the user, quick custom links and modals for admin.",
+    "long_description": "Displays user information(configurable with custom fields).\nProvides access for custom urls to open in links and modals.\nCustomizable url to different host with custom paramaters.\nMultibrand support.",
+    "installation_instructions": "Install and setup the JSON array of data.\nFor custom data information see:\n",
+    "parameters": {
+      "json_array": {
+        "label": "JSON Array of data",
+        "helpText": "See  for more information.\nThere is no JSON validation, so please validate before paste object."
+      }
+    }
+  }
+}

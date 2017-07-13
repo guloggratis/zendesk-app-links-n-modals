@@ -1,0 +1,25 @@
+{
+  "name": "links-n-modals",
+  "author": {
+    "name": "GulogGratis.dk",
+    "email": "support@guloggratis.dk",
+    "url": "https://www.guloggratis.dk/"
+  },
+  "version": "1.0",
+  "defaultLocale": "en",
+  "frameworkVersion": "2.0",
+  "private": true,
+  "location": {
+    "support": {
+      "ticket_sidebar": "assets/iframe.html",
+      "user_sidebar": "assets/iframe.html"
+    }
+  },
+  "parameters": [
+    {
+      "name": "json_array",
+      "type": "multiline",
+      "required": true
+    }
+  ]
+}

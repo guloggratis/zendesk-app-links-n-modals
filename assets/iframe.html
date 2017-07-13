@@ -1,0 +1,259 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <!-- http://garden.zendesk.com -->
+    <link rel="stylesheet" href="https://assets.zendesk.com/apps/sdk-assets/css/1/zendesk_garden.css" type="text/css">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" type="text/css">
+    <link rel="stylesheet" href="style.css" type="text/css">
+</head>
+<body>
+    <!-- main content will be render in data-main -->
+    <section data-main>
+        <div id="tlWaiting">
+            <i class="fa fa-spinner fa-spin fa-5x fa-fw"></i>
+        </div>
+    </section>
+    <!-- https://github.com/zendesk/zendesk_app_framework_sdk -->
+    <script type="text/javascript" src="https://assets.zendesk.com/apps/sdk/2.0/zaf_sdk.js"></script>
+    <script>
+        // Initialise the Zendesk JavaScript API client
+        // https://developer.zendesk.com/apps/docs/apps-v2
+        var client = ZAFClient.init();
+
+        // main element of the application
+        function mainEl() {
+            return document.querySelector('section[data-main]');
+        }
+
+        // returns configuration urls defined in the app configuration/install
+        var getConfigUrls = new Promise(function (resolve) {
+            var configUrls = {};
+            client.metadata().then(function(metadata) {
+                configUrls['brands'] = JSON.parse(metadata.settings.json_array);
+
+                return resolve(configUrls);
+            }).catch(function (error) {
+                console.warn(error);
+            });
+        });
+
+        // returns user and ticket information with configuration urls from getConfigUrls
+        // check for values: https://developer.zendesk.com/apps/docs/apps-v2/support_api#ticket-object
+        var getTicketInfo = function(config, location) {
+            return new Promise(function (resolve) {
+
+                var requireFields = [];
+                var userIndex = '';
+                if (location === 'user_sidebar') {
+                    requireFields = ['user'];
+                    userIndex = 'user.';
+                }
+                if (location === 'ticket_sidebar') {
+                    requireFields = ['ticket'];
+                    userIndex = 'ticket.requester.';
+                }
+
+                // just to get the required fields
+                config['brands'].forEach(function (brand) {
+                    if (brand['required_fields']) {
+                        brand['required_fields'].forEach(function (field) {
+                            var tmpField = userIndex + field;
+                            requireFields.push(tmpField);
+                        });
+                    }
+                });
+
+                var result = {};
+                client.get(requireFields).then(function(data) {
+
+                    var userDataIndex = [];
+                    if (location === 'user_sidebar') {
+                        userDataIndex = data['user'];
+                    }
+                    if (location === 'ticket_sidebar') {
+                        userDataIndex = data['ticket']['requester'];
+                    }
+
+                    var brandsData = [];
+                    config['brands'].forEach(function(brand) {
+                        var tmpData = [];
+
+                        // check if we have user data to add to defined brand
+                        var addBrand = false;
+
+                        // get user information
+                        var userData = [];
+                        brand['data']['user'].forEach(function(userInfo) {
+                            for(var name in userInfo) {
+                                if (data[userIndex + userInfo[name]]) {
+                                    addBrand = true;
+                                    userData[name] = data[userIndex + userInfo[name]];
+                                }
+                            }
+                        });
+
+                        var urlData = [];
+                        brand['data']['urls'].forEach(function(urlInfo) {
+                            var infoData = {};
+                            if (brand['required_fields']) {
+                                brand['required_fields'].forEach(function (field) {
+                                    if (data[userIndex + field]) {
+                                        infoData['title'] = urlInfo['title'];
+                                        infoData['options'] = urlInfo['options'];
+                                        // check url params and replace with values from data
+                                        infoData['url'] = urlInfo['url'].replace('{{'+ field  +'}}', data[userIndex + field]);
+                                    }
+                                });
+                            } else {
+                                infoData['title'] = urlInfo['title'];
+                                infoData['options'] = urlInfo['options'];
+                                infoData['url'] = urlInfo['url'];
+                            }
+
+                            if (Object.keys(infoData).length !== 0) {
+                                urlData.push(infoData);
+                            }
+                        });
+
+                        tmpData['name'] = brand['brand'];
+                        tmpData['user_data'] = userData;
+                        tmpData['url_data'] = urlData;
+                        if (addBrand) {
+                            brandsData.push(tmpData);
+                        }
+                    });
+
+                    result['email'] = userDataIndex['email'];
+                    result['name'] = userDataIndex['name'];
+                    result['brands'] = brandsData;
+
+                    resolve(result);
+                }).catch(function (error) {
+                    console.warn(error);
+                    console.warn('there is no ticket data here');
+                });
+            });
+        };
+
+        // opens a modal giving a url
+        var openModalApp = function(url) {
+            return client.invoke('instances.create', {
+                location: 'modal',
+                url: url
+            }).then(function(modalContext) {
+                // The modal is on the screen
+                var modalClient = client.instance(modalContext['instances.create'][0].instanceGuid);
+                modalClient.invoke('resize', { width: '1200px', height: '800px' });
+                modalClient.on('modal.close', function(data) {
+                    // The modal has been closed.
+                });
+            });
+        };
+
+        // renders user information with quick links
+        var ticketLinksApp = function(location) {
+            var self = this;
+            // get all the configuration urls
+            getConfigUrls.then(function(config) {
+                // use configuration urls to get ticket/user data
+                return getTicketInfo(config, location)
+            }).then(function(result) {
+                // render data in ticket app
+                self.render(result['brands'], result['name'], result['email']);
+            });
+        };
+
+        ticketLinksApp.prototype =  {
+            render: function(brandsInfo, userName, email) {
+                var userData = '<table class="tl-user">' +
+                    '<tr>' +
+                        '<td class="tl-user-icon"><i class="fa fa-user" aria-hidden="true"></i></td>' +
+                        '<td>' + userName + '</td>' +
+                    '</tr>' +
+                    '<tr>' +
+                        '<td class="tl-user-icon"><i class="fa fa-envelope" aria-hidden="true"></i></td>' +
+                        '<td>' + email + '</td>' +
+                    '</tr>' +
+                    '</table>';
+
+                if (brandsInfo) {
+                    var brandsData = userData;
+                    brandsInfo.forEach(function (brandInfo) {
+                        var brandData = '<div class="tl-brand-header">'+brandInfo['name']+'</div>';
+
+                        var brandUserData = '<table class="tl-brand-user">';
+                        var userBrandInfo = brandInfo['user_data'];
+                        if (userBrandInfo) {
+                            for(var name in userBrandInfo) {
+                                brandUserData += '<tr>' +
+                                    '<td class="tl-brand-user-title">'+name+'</td>' +
+                                    '<td>'+userBrandInfo[name]+'</td>' +
+                                    '</tr>';
+                            }
+                        }
+                        brandUserData += '</table>';
+                        brandsData += brandData + brandUserData;
+                        var actionsData = '<table class="tl-brand-links">';
+                        brandInfo['url_data'].forEach(function(element) {
+                            var title = element['title'];
+                            var url = element['url'];
+
+                            actionsData += '<tr class="tl-brand-link">' +
+                                '<td class="tl-brand-link-title">'+title+'</td>';
+
+                            if (element['options']) {
+                                element['options'].forEach(function(opt) {
+                                    // opens in a modal
+                                    if (opt === 'iframe') {
+                                        actionsData += '<td class="tl-brand-link-actions">' +
+                                            '<a class="open-modal-url" data-url="'+url+'" title="Modal">' +
+                                            '<i class="fa fa-desktop" aria-hidden="true"></i>' +
+                                            '</a>' +
+                                            '</td>';
+                                    }
+                                    // opens in a new tab
+                                    if (opt === 'newtab') {
+                                        actionsData += '<td class="tl-brand-link-actions">' +
+                                            '<a href="'+url+'" target="_blank" title="Ny tab">' +
+                                            '<i class="fa fa-external-link" aria-hidden="true"></i>' +
+                                            '</a>' +
+                                            '</td>';
+                                    }
+                                });
+                            }
+                            actionsData += '</tr>';
+                        });
+                        actionsData += '</table>';
+                        brandsData += actionsData;
+
+                    });
+                    mainEl().innerHTML = brandsData;
+
+                    var modals = document.querySelectorAll('.open-modal-url');
+                    modals.forEach(function (modal) {
+                        var url = modal.getAttribute('data-url');
+                        modal.addEventListener('click', openModalApp.bind(null, url), false);
+                    });
+                }
+
+                this.resize();
+            },
+            resize: function () {
+                var sectionHeight = mainEl().getBoundingClientRect().height;
+                client.invoke('resize', { height: sectionHeight });
+            }
+        };
+
+        // initiate app
+        function init(location) {
+            new ticketLinksApp(location);
+        }
+
+        // register/start app on client
+        client.on('app.registered', function(data) {
+            init(data.context.location);
+        });
+    </script>
+</body>
+</html>

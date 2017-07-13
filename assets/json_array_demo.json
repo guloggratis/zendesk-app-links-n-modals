@@ -1,0 +1,48 @@
+[
+  {
+    "brand": "Brand 1",
+    "required_fields": [
+      "customField:brand_1_user_id"
+    ],
+    "data": {
+      "user": [
+        {
+          "brand_user_id": "customField:brand_1_user_id",
+          "brand_phone_number": "customField:brand_1_user_phone"
+        }
+      ],
+      "urls": [
+        {
+          "title": "User Edit",
+          "options": ["iframe", "newtab"],
+          "url": "https://www.my-domain.dk/admin/user_edit?user_id={{customField:brand_1_user_id}}"
+        },
+        {
+          "title": "Search",
+          "options": ["iframe", "newtab"],
+          "url": "https://www.my-domain.dk/admin/user_search"
+        }
+      ]
+    }
+  },
+  {
+    "brand": "Brand 2",
+    "required_fields": [
+      "customField:brand_2_user_id"
+    ],
+    "data": {
+      "user": [
+        {
+          "brand_user_id": "customField:brand_2_user_id"
+        }
+      ],
+      "urls": [
+        {
+          "title": "User Admin",
+          "options": ["iframe", "newtab"],
+          "url": "http://www.my-other-domain.com/admin?user_id={{customField:brand_2_user_id}}"
+        }
+      ]
+    }
+  }
+]
