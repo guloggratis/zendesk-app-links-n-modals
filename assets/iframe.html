@@ -96,13 +96,23 @@
                         var urlData = [];
                         brand['data']['urls'].forEach(function(urlInfo) {
                             var infoData = {};
-                            if (brand['required_fields']) {
+                            // check if ur has required param
+                            var urlHasParam = urlInfo['url'].match(new RegExp("{{" + "(.*)" + "}}"));
+                            // if url has params
+                            if (brand['required_fields'] && urlHasParam) {
                                 brand['required_fields'].forEach(function (field) {
-                                    if (data[userIndex + field]) {
-                                        infoData['title'] = urlInfo['title'];
-                                        infoData['options'] = urlInfo['options'];
-                                        // check url params and replace with values from data
-                                        infoData['url'] = urlInfo['url'].replace('{{'+ field  +'}}', data[userIndex + field]);
+                                    // only get params that exit
+                                    if (data[userIndex + field] && (urlInfo['url'].indexOf('{{'+ field +'}}') !== -1)) {
+                                        if (infoData['title'] === urlInfo['title']) {
+                                            // we have more url params to change
+                                            // so we update the last assigned infoData['url]
+                                            infoData['url'] = infoData['url'].replace('{{'+ field +'}}', data[userIndex + field]);
+                                        } else {
+                                            infoData['title'] = urlInfo['title'];
+                                            infoData['options'] = urlInfo['options'];
+                                            // check url params and replace with values from data
+                                            infoData['url'] = urlInfo['url'].replace('{{'+ field +'}}', data[userIndex + field]);
+                                        }
                                     }
                                 });
                             } else {
